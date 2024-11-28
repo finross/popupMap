@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Where Do I Vote 2025 | CSSD By-Election</title>
+
+  <style>
+
+/* Header removed as requested */
+
+/* Adjust padding for the main content */
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column; /* Column layout to allow main content at the top */
+}
+
+/* Default styling for desktop */
+html,
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+#content {
+  display: flex;
+  flex-direction: row; /* Row layout to have infoDiv and viewDiv side by side */
+  height: 100%; /* Full height for content */
+}
+
+#infoDiv {
+  flex: 0 0 30%; /* 30% width for the info panel */
+  padding: 10px;
+  overflow: auto;
+  background-color: #f8f8f8;
+  border-right: 1px solid #ccc; /* Border on the right for desktop layout */
+}
+
+#viewDiv {
+  flex: 1; /* Take remaining width for the map */
+}
+
+/* Styling for mobile screens */
+@media (max-width: 768px) {
+  #content {
+    flex-direction: column; /* Column layout for mobile */
+  }
+
+  #viewDiv {
+    flex: 1; /* Take remaining height for the map */
+    order: 1; /* Ensure viewDiv is above infoDiv on mobile */
+  }
+
+  #infoDiv {
+    flex: 0 0 40%; /* 40% height for the info panel */
+    border-right: none;
+    border-top: 1px solid #ccc; /* Border on the top for mobile layout */
+    order: 2; /* Ensure infoDiv is below viewDiv on mobile */
+  }
+}
+
+/* Container for search input and buttons */
+#searchDiv {
+  display: flex;
+  align-items: center; /* Align items vertically */
+}
+
+/* Search bar styles */
+#search-input {
+  height: 36px;
+  font-size: 16px;
+  padding: 0 10px;
+  margin-right: 10px;
+  width: calc(100% - 250px); /* Adjust width to fit the container */
+}
+
+/* Search button styles */
+.search-button {
+  height: 36px;
+  width: 36px;
+  background: none;
+  border: 1px solid #ccc; /* Add a box outline */
+  padding: 0;
+  cursor: pointer;
+  border-radius: 4px; /* Optional: Add rounded corners */
+  display: flex; /* Ensure the image inside is centered */
+  align-items: center; /* Center the image vertically */
+  justify-content: center; /* Center the image horizontally */
+}
+
+.search-button img {
+  width: 24px;
+  height: 24px;
+}
+
+.search-button:hover {
+  background-color: #f0f0f0; /* Change background color on hover */
+}
+
+/* Clear All button styles */
+.clear-button {
+  height: 36px;
+  padding: 0 10px;
+  background-color: #005671;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px; /* Add some space between buttons */
+}
+
+.clear-button:hover {
+  background-color: #01455b;
+}
+
+/* Suggestions container styles */
+#suggestions {
+  margin-top: 10px; /* Add space above the suggestions */
+  border: 1px solid #ccc;
+  max-height: 150px;
+  overflow-y: auto; /* Allow scrolling if suggestions overflow */
+  background-color: #fff; /* Ensure background color matches the design */
+}
+
+.suggestion-item {
+  padding: 5px;
+  cursor: pointer;
+}
+
+.suggestion-item:hover {
+  background-color: #e0e0e0;
+}
+
+/* Accordion styles */
+.accordion {
+  margin-top: 20px; /* Add some space above the accordion */
+}
+
+.accordion-item {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.accordion-button {
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  font-size: 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.accordion-button:focus {
+  outline: none;
+}
+
+.accordion-content {
+  display: none;
+  padding: 10px;
+}
+
+.accordion-content[aria-hidden="false"] {
+  display: block; /* Show the content when expanded */
+}
+
+/* Message element styles */
+#message {
+  margin-top: 10px;
+  color: red;
+  font-weight: bold;
+  display: none; /* Initially hidden */
+}
+
+
+</style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.31/"></script>
+
+  <script>
+    require([
+      "esri/views/MapView",
+      "esri/WebMap",
+      "esri/widgets/Home",
+      "esri/widgets/Feature",
+      "esri/request",
+      "esri/Graphic"
+    ], function(MapView, WebMap, Home,Feature, esriRequest, Graphic) {
+      const webmap = new WebMap({
+        portalItem: {
+          id: "f22f8823b8b74d25888b91ba46afe697"
+        }
+      });
+
+      const view = new MapView({
+        map: webmap,
+        container: "viewDiv"
+      });
+      const homeBtn = new Home({
+          view: view
+        });
+
+        // Add the home button to the top left corner of the view
+        view.ui.add(homeBtn, "bottom-right");
+
+      const feature = new Feature({
+        container: "infoDiv",
+        view: view
+      });
+
+      let initialExtent;
+
+      view.when(() => {
+        initialExtent = view.extent.clone();
+      });
+
+      // Function to perform spatial query and highlight the subdivision
+      function queryFeatureLayer(geometry) {
+  const layer = view.map.layers.find(layer => layer.title === "Election Day Voting Subdivisions - CSSD");
+  const messageElement = document.getElementById('message'); // Get the message element
+
+  if (layer) {
+    const query = layer.createQuery();
+    query.geometry = geometry;
+    query.spatialRelationship = "intersects";
+    query.outFields = ["*"];
+    query.returnGeometry = true;
+
+    layer.queryFeatures(query).then(function(result) {
+      if (result.features.length > 0) {
+        const subdivision = result.features[0];
+        feature.graphic = subdivision;
+
+        // Highlight the subdivision
+        const highlightGraphic = new Graphic({
+          geometry: subdivision.geometry,
+          symbol: {
+            type: "simple-fill",
+            color: [255, 255, 255, 0], // Transparent fill
+            outline: {
+              color: "#70e2e6", // Outline color
+              width: 2
+            }
+          }
+        });
+
+        // Clear existing graphics and add the highlight graphic and point graphic
+        view.graphics.removeAll();
+        view.graphics.add(highlightGraphic);
+
+        // Add the point graphic back to the map
+        view.graphics.add(new Graphic({
+          geometry: geometry,
+          symbol: { type: "simple-marker", color: "red", size: "16px" }
+        }));
+
+        // Hide the message if results are found
+        messageElement.style.display = 'none';
+      } else {
+        feature.graphic = null;
+        view.graphics.removeAll();
+
+        // Show the message if no results are found
+        messageElement.textContent = 'Only addresses in Wards 4,7,11 & 12 can vote in this By-Election.';
+        messageElement.style.display = 'block';
+        // Add a point graphic for the address even if no results are found 
+        const addressGraphic = new Graphic({ 
+            geometry: geometry, 
+            symbol: { type: "simple-marker", color: "red", size: "16px" } }); 
+            view.graphics.add(addressGraphic); 
+        }
+      
+    });
+  }
+}
+
+      // Search button click event
+      document.getElementById('search-button').addEventListener('click', function () {
+        const searchInput = document.getElementById('search-input').value;
+        if (!searchInput) {
+          alert('Please enter a location.');
+          return;
+        }
+
+        // Geocode the search input using esriRequest
+        const geocodeUrl = "https://gis.calgary.ca/arcgis/rest/services/pub_Locators/CalgaryUniversalLocatorLL/GeocodeServer/findAddressCandidates";
+        esriRequest(geocodeUrl, {
+          query: { SingleLine: searchInput, f: "json", maxLocations: 1, outFields: "*" }
+        }).then(function (response) {
+          const candidates = response.data.candidates;
+          if (candidates.length > 0) {
+            const point = candidates[0].location;
+
+            // Create a graphic for the selected point
+            var graphicHome = new Graphic({
+              geometry: { type: "point", longitude: point.x, latitude: point.y },
+              symbol: { type: "simple-marker", color: "red", size: "16px" }
+            });
+
+            // Clear existing graphics and add the new graphic
+            view.graphics.removeAll();
+            view.graphics.add(graphicHome);
+
+            // Center the map on the point and set zoom level to 12
+            view.goTo({
+              center: [point.x, point.y],
+              zoom: 12
+            });
+
+            // Perform spatial query to get the precinctid and related record
+            queryFeatureLayer(graphicHome.geometry);
+          } else {
+            alert('Location not found.');
+          }
+        }).catch(function (error) {
+          console.error('Error geocoding:', error);
+        });
+      });
+
+      // Clear all button click event
+document.getElementById('clear-button').addEventListener('click', function () {
+  document.getElementById('search-input').value = '';
+  document.getElementById('suggestions').innerHTML = '';
+  view.graphics.removeAll();
+  feature.graphic = null;
+  view.goTo(initialExtent); // Reset to the original extent
+
+  // Hide the message when clearing
+  const messageElement = document.getElementById('message');
+  messageElement.textContent = '';
+  messageElement.style.display = 'none';
+});
+
+
+      // Search input event for suggestions
+      document.getElementById('search-input').addEventListener('input', function (event) {
+        const searchText = event.target.value;
+        if (searchText.length > 2) {
+          getSuggestions(searchText);
+        } else {
+          document.getElementById('suggestions').innerHTML = '';
+        }
+      });
+
+      // Function to get suggestions
+      function getSuggestions(searchText) {
+        const geocodeUrl = "https://gis.calgary.ca/arcgis/rest/services/pub_Locators/CalgaryUniversalLocatorLL/GeocodeServer/suggest";
+        esriRequest(geocodeUrl, { query: { text: searchText, f: "json" } }).then(function (response) {
+          const suggestions = response.data.suggestions;
+          displaySuggestions(suggestions);
+        }).catch(function (error) {
+          console.error('Error fetching suggestions:', error);
+        });
+      }
+
+      // Function to display suggestions
+      function displaySuggestions(suggestions) {
+  const suggestionsContainer = document.getElementById('suggestions');
+  suggestionsContainer.innerHTML = '';
+
+  suggestions.forEach((suggestion, index) => {
+    // Parse the text to get the part before the first comma
+    const parsedText = suggestion.text.split(',')[0];
+
+    const suggestionItem = document.createElement('div');
+    suggestionItem.className = 'suggestion-item';
+    suggestionItem.innerText = parsedText;
+    suggestionItem.tabIndex = 0; // Make suggestion item focusable
+    suggestionItem.role = 'option'; // Define role for screen readers
+
+    suggestionItem.addEventListener('click', function () {
+      document.getElementById('search-input').value = parsedText;
+      suggestionsContainer.innerHTML = '';
+      // Trigger the search button click event
+      document.getElementById('search-button').click();
+    });
+
+    suggestionItem.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter' || event.keyCode === 13) {
+        document.getElementById('search-input').value = parsedText;
+        suggestionsContainer.innerHTML = '';
+        // Trigger the search button click event
+        document.getElementById('search-button').click();
+      } else if (event.key === 'ArrowDown' || event.keyCode === 40) {
+        // Move focus to the next suggestion item
+        const nextElement = suggestionsContainer.children[index + 1];
+        if (nextElement) {
+          nextElement.focus();
+        }
+      } else if (event.key === 'ArrowUp' || event.keyCode === 38) {
+        // Move focus to the previous suggestion item
+        const prevElement = suggestionsContainer.children[index - 1];
+        if (prevElement) {
+          prevElement.focus();
+        } else {
+          // Move focus back to the search input if we're at the first item
+          document.getElementById('search-input').focus();
+        }
+      }
+    });
+
+    suggestionsContainer.appendChild(suggestionItem);
+  });
+
+  // Add event listener to search input to move focus on ArrowDown 
+  const searchInput = document.getElementById('search-input'); 
+  searchInput.addEventListener('keydown', function(event) {
+     if (event.key === 'ArrowDown' || event.keyCode === 40) { 
+        // Move focus to the first suggestion item if ArrowDown is pressed 
+        if (suggestionsContainer.children.length > 0) { 
+            suggestionsContainer.children[0].focus(); 
+            event.preventDefault(); // Prevent default behavior to avoid moving caret in input 
+            } } }); 
+
+
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+  // Get the accordion button and content
+  var accordionButton = document.getElementById("accordion-button");
+  var helpContent = document.getElementById("helpContent");
+
+  // Toggle the accordion content
+  accordionButton.onclick = function() {
+    var isExpanded = accordionButton.getAttribute("aria-expanded") === "true";
+    accordionButton.setAttribute("aria-expanded", !isExpanded);
+    helpContent.setAttribute("aria-hidden", isExpanded);
+  }
+});
+
+</script>
+</head>
+
+<body>
+
+  <div id="content">
+    <div id="infoDiv">
+      <div id="instructions" class="accordion">
+        <div class="accordion-item">
+          <button id="accordion-button" class="accordion-button" aria-expanded="true" aria-controls="helpContent">
+            Instructions
+          </button>
+          <div id="helpContent" class="accordion-content" aria-hidden="false">
+            <h2>How to Use the App</h2>
+            <ul>
+              <li>Enter a home address in the search bar and click the search button.</li>
+              <li>If there are matching results, they will be displayed on the map.</li>
+              <li>If no results are found, a message will inform you.</li>
+              <li>Click the "Clear All" button to reset the search and clear all results.</li>
+              <li>The home button in the bottom right will reset the map to its initial view.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <br> <!-- Line break added here -->
+
+      <div id="searchDiv">
+        <input type="text" id="search-input" placeholder="Enter Home Address" tabindex="0" role="searchbox" aria-label="Enter Home Address" />
+        <button id="search-button" class="search-button" aria-label="Search">
+          <img src="https://img.icons8.com/material-rounded/24/000000/search.png" alt="Search Icon" />
+        </button>
+        <button id="clear-button" class="clear-button" aria-label="Clear All">Clear All</button>
+      </div>
+      <div id="suggestions" role="listbox" aria-labelledby="search-input"></div> <!-- suggestions div -->
+      <div id="message" role="alert" aria-live="assertive"></div>
+    </div>
+    <div id="viewDiv"></div>
+  </div>
+
+</body>
+
+
+</html>
