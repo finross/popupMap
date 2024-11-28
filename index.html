@@ -195,7 +195,7 @@ body {
     ], function(MapView, WebMap, Home,Feature, esriRequest, Graphic) {
       const webmap = new WebMap({
         portalItem: {
-          id: "f22f8823b8b74d25888b91ba46afe697"
+          id: "9b7b842078e34743a31f87461d789fe5"
         }
       });
 
@@ -223,7 +223,7 @@ body {
 
       // Function to perform spatial query and highlight the subdivision
       function queryFeatureLayer(geometry) {
-  const layer = view.map.layers.find(layer => layer.title === "Election Day Voting Subdivisions - CSSD");
+  const layer = view.map.layers.find(layer => layer.title === "My Property Details");
   const messageElement = document.getElementById('message'); // Get the message element
 
   if (layer) {
@@ -268,7 +268,7 @@ body {
         view.graphics.removeAll();
 
         // Show the message if no results are found
-        messageElement.textContent = 'Only addresses in Wards 4,7,11 & 12 can vote in this By-Election.';
+        messageElement.textContent = 'No Details';
         messageElement.style.display = 'block';
         // Add a point graphic for the address even if no results are found 
         const addressGraphic = new Graphic({ 
